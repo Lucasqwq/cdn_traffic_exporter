@@ -1,0 +1,6 @@
+prometheus_client==0.10.1
+requests==2.25.1
+alibabacloud_tea_util==0.1.2
+huaweicloudsdkcdn==3.1.103
+huaweicloudsdkcore==3.1.103
+tencentcloud-sdk-python-intl-en==3.0.1154
