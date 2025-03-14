@@ -1,0 +1,17 @@
+VAI_API_KEY = "key"
+VAI_API_SECRET = "secret"
+
+ITE_API_KEY = "key"
+ITE_API_SECRET = "secret"
+
+ASIA_API_KEY = "key"
+ASIA_API_SECRET = "secret"
+
+CDNETWORKS_API_KEY = "key"
+CDNETWORKS_API_SECRET = "secret"
+
+HUAWEI_API_KEY = "key"
+HUAWEI_API_SECRET = "secret"
+
+TENCENT_API_KEY = "key"
+TENCENT_API_SECRET = "secret"
