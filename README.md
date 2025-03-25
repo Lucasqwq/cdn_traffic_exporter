@@ -1,14 +1,14 @@
 # CDN Traffic Metrics Exporter
 
-- 此專案是一個使用 `prometheus_client` 模組撰寫的流量表 Metrics Exporter。  
-- 透過各家 CDN 廠商的 API 取得特定域名的流量資料，並將其轉換為 Prometheus 可用的 Metrics Value,再串接到 Grafana 的儀表板上，支援直接複製貼上至 Excel流量表。
+- This project use `prometheus_client` module to expose metric value from cdn_traffic to build a Grafana dashboard.
+- Retrieve traffic data for a specific domain through the APIs of various CDN providers, convert it into Metrics Values compatible with Prometheus, and then integrate it into a Grafana dashboard, supporting direct copy-paste into an Excel traffic table.
 
-## 前置需求
-- **Python 環境**：基於 `python:3.8.10-slim` Docker 映像檔
-- **套件需求**：需安裝 `requirements.txt` 中列出的 Python 套件
-- **API 認證**：`config.py` 檔案中包含各家 CDN 廠商的 API 認證資訊
-- **網宿 API 安裝包**：`cdnetworks` 資料夾包含網宿的 API SDK包
-- **Dockerfile內容:**  
+## Prerequisites  
+- **Python Environment**：Basic on `python:3.8.10-slim` Docker image  
+- **Packages requirements**：Install `requirements.txt` Python module  
+- **API Authentication**：`config.py` The file includes API authentication information from each CDN providers
+- **Cdnetworks API packages**：`cdnetworks` The folder includes Cdnetworks API SDK  
+- **Dockerfile contents:**  
     ```
     FROM python:3.8.10-slim
 
@@ -34,19 +34,19 @@
         - monitor
     ```
 
-## 重啟服務
-- 若有更改code  
-    這些command是用來清除image,並重新build image使用的,因為沒有掛volume所以改code的時候得清除image再重新啟動  
+## Restarting service  
+- If you have update on code  
+    These command are used to delete and rebuild image,because there are no volume to mount ,so you have to clear the image and rebuild to start the service  
     ```
     docker stop cdn_traffic_exporter
     docker rm cdn_traffic_exporter
     docker rmi prometheus-cdn_traffic_exporter
     ```
-    再到prometheus資料夾下使用
+    back to prometheus folder
     ```
     docker-compose up -d cdn_traffic_exporter
     ```
-    就可以把服務起起來  
+    then the service is up  
     
-- 無改動code  
-    直接docker restart cdn_traffic_exporter
+- no update on code  
+    docker restart cdn_traffic_exporter
