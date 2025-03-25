@@ -175,7 +175,7 @@ class WebsiteMetricsCollector:
                 flow_data = []
                 for flow_entry in root.findall('flow-data'):
                     timestamp = flow_entry.find('timestamp').text
-                    flow = f"{float(flow_entry.find('flow').text)*1_048_576:.2f}"
+                    flow = f"{float(flow_entry.find('flow').text)*1_000_000:.2f}"
                     flow_data.append({'date': timestamp, 'value': flow})
                 return flow_data[:-1] if flow_data else []
         return Client.main()
@@ -232,6 +232,10 @@ class WebsiteMetricsCollector:
             print(e.error_msg)
 
     def _fetch_tencent_data(self, cdn_name, domains_for_url, start_date_str, end_date_str):
+        end_date_obj = datetime.datetime.strptime(end_date_str, "%Y-%m-%d")
+        adjusted_end_date = end_date_obj - datetime.timedelta(days=2)
+        end_date_str = adjusted_end_date.strftime('%Y-%m-%d')
+        
         try:
             # Authentication with Tencent Cloud credentials
             cred = credential.Credential(config.TENCENT_API_KEY, config.TENCENT_API_SECRET)
@@ -253,8 +257,8 @@ class WebsiteMetricsCollector:
                 "Namespace": "QCE/COS",
                 "MetricName": "InternetTraffic",
                 "Period": 86400,
-                "StartTime": "2025-03-04T00:00:00+08:00",
-                "EndTime": "2025-03-10T23:59:59+08:00",
+                "StartTime": f"{start_date_str}T00:00:00+08:00",
+                "EndTime": f"{end_date_str}T23:59:59+08:00",
                 "Instances": [
                     {
                         "Dimensions": [
@@ -340,14 +344,25 @@ class WebsiteMetricsCollector:
                     for entry in usage_data:
                         date = entry['date']
                         value = entry['value']
-                        if cdn_name in ("huawei_media", "tencent_media"):
+                        #Each cdn value transformation is different,so should be add to one of the below
+                        if cdn_name.startswith(("huawei")):
                             value_in_tb = f"{(float(value) / 1_099_511_627_776):.2f}"
                             self.website_traffic_value.labels(date=date, domain=domains_for_metrics, cdn=cdn_name).set(value_in_tb)
                             traffic_list.append(f"Date: {date}, traffic_value: {value_in_tb} TB")
-                        else:
+                        elif cdn_name.startswith(("tencent")):
+                            value_in_tb = f"{(float(value) / 1_000_000_000_000):.2f}"
+                            self.website_traffic_value.labels(date=date, domain=domains_for_metrics, cdn=cdn_name).set(value_in_tb)
+                            traffic_list.append(f"Date: {date}, traffic_value: {value_in_tb} TB")
+                        elif cdn_name.startswith(("cdnetworks","asia")):
+                            value_in_gb = f"{(float(value) / 1_000_000_000):.2f}"
+                            self.website_traffic_value.labels(date=date, domain=domains_for_metrics, cdn=cdn_name).set(value_in_gb)
+                            traffic_list.append(f"Date: {date}, traffic_value: {value_in_gb} GB")
+                        elif cdn_name.startswith(("vai","ite")):
                             value_in_gb = f"{(float(value) / 1_073_741_824):.2f}"
                             self.website_traffic_value.labels(date=date, domain=domains_for_metrics, cdn=cdn_name).set(value_in_gb)
                             traffic_list.append(f"Date: {date}, traffic_value: {value_in_gb} GB")
+                        else:
+                            logger.info(f"{cdn_name} should be add to one of the transformation in code")
                     logger.info(f"Response data for {cdn_name}: {json.dumps(traffic_list, indent=2)}")
 
                 else:
