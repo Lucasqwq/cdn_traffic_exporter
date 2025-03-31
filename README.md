@@ -34,6 +34,14 @@
         - monitor
     ```
 
+
+## Usage
+    Type the command below in the folder which includes docker-compose file,could get the current traffic-value data
+    ```
+    docker-compose up -d cdn_traffic_exporter
+    curl 127.0.0.1:18563
+    ```
+
 ## Restarting service  
 - If you have update on code  
     These command are used to delete and rebuild image,because there are no volume to mount ,so you have to clear the image and rebuild to start the service  
@@ -50,3 +58,9 @@
     
 - no update on code  
     docker restart cdn_traffic_exporter
+
+## Setting cronjob
+- To let the past timestamp traffic-data not been cached on the metrics exporter,need to restart cdn_traffic_exporter container to clear the old metrics.
+
+## Setting prometheus scrape interval
+- scrape interval setting to 5m
