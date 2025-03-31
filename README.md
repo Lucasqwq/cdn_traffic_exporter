@@ -37,6 +37,7 @@
 
 ## Usage
     Type the command below in the folder which includes docker-compose file,could get the current traffic-value data
+    
     ```
     docker-compose up -d cdn_traffic_exporter
     curl 127.0.0.1:18563
@@ -44,16 +45,20 @@
 
 ## Restarting service  
 - If you have update on code  
-    These command are used to delete and rebuild image,because there are no volume to mount ,so you have to clear the image and rebuild to start the service  
+    These command are used to delete and rebuild image,because there are no volume to mount ,so you have to clear the image and rebuild to start the service
+  
     ```
     docker stop cdn_traffic_exporter
     docker rm cdn_traffic_exporter
     docker rmi prometheus-cdn_traffic_exporter
     ```
+    
     back to prometheus folder
+
     ```
     docker-compose up -d cdn_traffic_exporter
     ```
+    
     then the service is up  
     
 - no update on code  
