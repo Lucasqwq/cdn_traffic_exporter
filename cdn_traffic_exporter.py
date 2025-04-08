@@ -54,6 +54,33 @@ logger = logging.getLogger(__name__)
 logging.getLogger('requests').setLevel(logging.WARNING)
 logging.getLogger('urllib3').setLevel(logging.WARNING)
 
+# Function to parse domains.txt
+def load_domains_from_file(file_path='domains.txt'):
+    domains_dict = {}
+    current_section = None
+    
+    try:
+        with open(file_path, 'r', encoding='utf-8') as file:
+            for line in file:
+                line = line.strip()
+                if not line:  # Skip empty lines
+                    continue
+                if line.startswith('[') and line.endswith(']'):  # Section header
+                    current_section = line[1:-1]  # Remove [ and ]
+                    domains_dict[current_section] = []
+                elif current_section:  # Domain line
+                    domains_dict[current_section].append(line)
+                    
+    except FileNotFoundError:
+        logger.error(f"File {file_path} not found. Using default domains.")
+        return {}
+    
+    except Exception as e:
+        logger.error(f"Error reading {file_path}: {str(e)}")
+        return {}
+    
+    return domains_dict
+
 class WebsiteMetricsCollector:
     def __init__(self):
         self.website_traffic_value = Gauge(
@@ -73,31 +100,37 @@ class WebsiteMetricsCollector:
         response = requests.post(url, headers=headers, data=data)
         return response.json()["data"]["token"]
 
-    def fetch_cdn_data(self, cdn_name, domains_for_url, start_date_str, end_date_str):
+    def fetch_cdn_data(self, cdn_name, domains_for_url, user_package):
         """
         Main method to fetch data based on cdn type, 
         and the data has already been standariztion in the return value.
         """
         if cdn_name.startswith("vai"):
-            return self._fetch_vai_data(cdn_name, domains_for_url, start_date_str, end_date_str)
+            return self._fetch_vai_data(cdn_name, domains_for_url, user_package)
         elif cdn_name.startswith("ite"):
-            return self._fetch_ite_data(cdn_name, domains_for_url, start_date_str, end_date_str)
+            return self._fetch_ite_data(cdn_name, domains_for_url, user_package)
         elif cdn_name.startswith("asia"):
-            return self._fetch_asia_data(cdn_name, domains_for_url, start_date_str, end_date_str)
+            return self._fetch_asia_data(cdn_name, domains_for_url, user_package)
         elif cdn_name.startswith("cdnetworks"):
-            return self._fetch_cdnetworks_data(cdn_name, domains_for_url, start_date_str, end_date_str)
+            return self._fetch_cdnetworks_data(cdn_name, domains_for_url, user_package)
         elif cdn_name.startswith("maoyun"):
-            return self._fetch_maoyun_data(cdn_name, domains_for_url, start_date_str, end_date_str)
+            return self._fetch_maoyun_data(cdn_name, domains_for_url, user_package)
         elif cdn_name.startswith("huawei"):
-            return self._fetch_huawei_data(cdn_name, domains_for_url, start_date_str, end_date_str)
+            return self._fetch_huawei_data(cdn_name, domains_for_url, user_package)
         elif cdn_name.startswith("tencent"):
-            return self._fetch_tencent_data(cdn_name, domains_for_url, start_date_str, end_date_str)
+            return self._fetch_tencent_data(cdn_name, domains_for_url, user_package)
         else:
             logger.error(f"Unsupported CDN: {cdn_name}")
             return None
 
     # Existing CDN handlers
-    def _fetch_vai_data(self, cdn_name, domains_for_url, start_date_str, end_date_str):
+    def _fetch_vai_data(self, cdn_name, domains_for_url, user_package):
+        #This time scope should exactly be in 8 days,or the vai and ite would show hours data rather than day data
+        start_date = datetime.datetime.now() - datetime.timedelta(days=7)
+        end_date = datetime.datetime.now() - datetime.timedelta(days=-1)
+        start_date_str = start_date.strftime('%Y-%m-%d')
+        end_date_str = end_date.strftime('%Y-%m-%d')
+        
         API_KEY = config.VAI_API_KEY
         API_SECRET = config.VAI_API_SECRET
         headers = {
@@ -105,12 +138,21 @@ class WebsiteMetricsCollector:
             "api-secret": API_SECRET,
             "Content-Type": "application/json"
             }
-        url = f"https://cdn.bccdn.com/monitor/usage?cate=site&type=traffic&start={start_date_str}&end={end_date_str}&res={domains_for_url}"
+        if user_package != "":
+            url = f"https://cdn.bccdn.com/monitor/usage?cate=site&type=traffic&start={start_date_str}&end={end_date_str}&res=&user_package={user_package}"
+        else:
+            url = f"https://cdn.bccdn.com/monitor/usage?cate=site&type=traffic&start={start_date_str}&end={end_date_str}&res={domains_for_url}"
         response = requests.get(url, headers=headers)
         data = response.json()['data']
-        return data[:-1] if data else []
+        return data[7:] if data else []
 
-    def _fetch_ite_data(self, cdn_name, domains_for_url, start_date_str, end_date_str):
+    def _fetch_ite_data(self, cdn_name, domains_for_url, user_package):
+        #This time scope should exactly be in 8 days,or the vai and ite would show hours data rather than day data
+        start_date = datetime.datetime.now() - datetime.timedelta(days=7)
+        end_date = datetime.datetime.now() - datetime.timedelta(days=-1)
+        start_date_str = start_date.strftime('%Y-%m-%d')
+        end_date_str = end_date.strftime('%Y-%m-%d')
+        
         API_KEY = config.ITE_API_KEY
         API_SECRET = config.ITE_API_SECRET
         headers = {
@@ -121,9 +163,14 @@ class WebsiteMetricsCollector:
         url = f"https://cdn.itecdn.com/monitor/usage?cate=site&type=traffic&start={start_date_str}&end={end_date_str}&res={domains_for_url}"
         response = requests.get(url, headers=headers)
         data = response.json()['data']
-        return data[:-1] if data else []
+        return data[7:] if data else []
 
-    def _fetch_asia_data(self, cdn_name, domains_for_url, start_date_str, end_date_str):
+    def _fetch_asia_data(self, cdn_name, domains_for_url, user_package):
+        start_date = datetime.datetime.now() - datetime.timedelta(days=1)
+        end_date = datetime.datetime.now() - datetime.timedelta(days=-1)
+        start_date_str = start_date.strftime('%Y-%m-%d')
+        end_date_str = end_date.strftime('%Y-%m-%d')
+        
         json_data = {
             'site': ["tc19-site-11"],
             'start': f"{start_date_str}",
@@ -144,10 +191,15 @@ class WebsiteMetricsCollector:
                              'value': metrics['flow']}
                             for timestamp, metrics in site_data.items()
                             if float(metrics['flow']) > 0]
-            return data[1:-1] if data else []
+            return data[2:] if data else []
         return None
 
-    def _fetch_cdnetworks_data(self, cdn_name, domains_for_url, start_date_str, end_date_str):
+    def _fetch_cdnetworks_data(self, cdn_name, domains_for_url, user_package):
+        start_date = datetime.datetime.now()
+        end_date = datetime.datetime.now() - datetime.timedelta(days=-1)
+        start_date_str = start_date.strftime('%Y-%m-%d')
+        end_date_str = end_date.strftime('%Y-%m-%d')
+        
         domain_list = domains_for_url.split("%20")
         
         class Client:
@@ -177,22 +229,19 @@ class WebsiteMetricsCollector:
                     timestamp = flow_entry.find('timestamp').text
                     flow = f"{float(flow_entry.find('flow').text)*1_000_000:.2f}"
                     flow_data.append({'date': timestamp, 'value': flow})
-                return flow_data[:-1] if flow_data else []
+                return flow_data if flow_data else []
         return Client.main()
 
-    def _fetch_maoyun_data(self, cdn_name, domains_for_url, start_date_str, end_date_str):
+    def _fetch_maoyun_data(self, cdn_name, domains_for_url, user_package):
         # Replace with actual API call
         logger.info(f"Fetching maoyun data for {cdn_name} - placeholder")
         return None
 
-    def _fetch_huawei_data(self, cdn_name, domains_for_url, start_date_str, end_date_str):
-        full_start_date_str = start_date_str + " 00:00:00"         
-        date_start_obj = datetime.datetime.strptime(full_start_date_str,"%Y-%m-%d %H:%M:%S") # turn into datetime object
-        unix_start_timestamp = int(date_start_obj.timestamp() * 1000)                        # turn into unix timestamp
-
-        end_date_obj = datetime.datetime.strptime(end_date_str, "%Y-%m-%d")  # turn into datetime object,and the output shows %Y-%m-%d 00:00:00
-        adjusted_end_date = end_date_obj - datetime.timedelta(days=1)        # "%Y-%m-%d -1 %H:%M:%S"
-        unix_end_timestamp = int(adjusted_end_date.timestamp() * 1000)       # turn into unix timestamp
+    def _fetch_huawei_data(self, cdn_name, domains_for_url, user_package):
+        start_date = datetime.datetime.now().replace(hour=0,minute=0,second=0,microsecond=0)
+        end_date = datetime.datetime.now().replace(hour=23,minute=59,second=59,microsecond=0)
+        unix_start_timestamp = int(start_date.timestamp() * 1000)
+        unix_end_timestamp = int(end_date.timestamp() * 1000)
         
         
         ak = config.HUAWEI_API_KEY
@@ -212,18 +261,13 @@ class WebsiteMetricsCollector:
             request.end_time = unix_end_timestamp #1741190400000
             request.domain_name = "all"
             request.stat_type = "flux"
-            request.interval = 86400
+            request.interval = 3600
             response = client.show_domain_stats(request)
             flux_values = response.result['flux']
             
-            data = []
-            current_date = date_start_obj
-            for flux in flux_values:
-                date_str = current_date.strftime("%Y-%m-%d")
-                data.append({'date': date_str, 'value': flux})
-                current_date += datetime.timedelta(days=1)
+            data = [{'date': start_date.strftime("%Y-%m-%d"), 'value': sum(flux_values)}]
                 
-            return data
+            return data if data else []
             
         except exceptions.ClientRequestException as e:
             print(e.status_code)
@@ -231,10 +275,11 @@ class WebsiteMetricsCollector:
             print(e.error_code)
             print(e.error_msg)
 
-    def _fetch_tencent_data(self, cdn_name, domains_for_url, start_date_str, end_date_str):
-        end_date_obj = datetime.datetime.strptime(end_date_str, "%Y-%m-%d")
-        adjusted_end_date = end_date_obj - datetime.timedelta(days=2)
-        end_date_str = adjusted_end_date.strftime('%Y-%m-%d')
+    def _fetch_tencent_data(self, cdn_name, domains_for_url, user_package):     
+        end_date = datetime.datetime.now()
+        start_date = datetime.datetime.now()
+        end_date_str = end_date.strftime('%Y-%m-%d')
+        start_date_str = start_date.strftime('%Y-%m-%d')
         
         try:
             # Authentication with Tencent Cloud credentials
@@ -256,7 +301,7 @@ class WebsiteMetricsCollector:
             params = {
                 "Namespace": "QCE/COS",
                 "MetricName": "InternetTraffic",
-                "Period": 86400,
+                "Period": 3600,
                 "StartTime": f"{start_date_str}T00:00:00+08:00",
                 "EndTime": f"{end_date_str}T23:59:59+08:00",
                 "Instances": [
@@ -286,16 +331,17 @@ class WebsiteMetricsCollector:
             datapoints = data["DataPoints"]
 
             # Extract timestamps and values from the first DataPoints entry
-            timestamps = datapoints[0]["Timestamps"]
             values = datapoints[0]["Values"]
-
+            total = 0
+            for value in values:
+                total = total + value
+                
             # Convert timestamps to date strings in UTC+8 and create the list of dictionaries
             result = [
                 {
-                    'date': datetime.datetime.fromtimestamp(timestamp).strftime('%Y-%m-%d'),
-                    'value': value
+                    'date': start_date_str,
+                    'value': sum(values)
                 }
-                for timestamp, value in zip(timestamps, values)
             ]
 
             # Print the result
@@ -309,36 +355,49 @@ class WebsiteMetricsCollector:
         return None
 
     def fetch_metrics(self):
-        #This time scope should exactly be in 8 days,or the vai and ite would show hours data rather than day data
-        end_date = datetime.datetime.now() - datetime.timedelta(days=-1)
-        start_date = datetime.datetime.now() - datetime.timedelta(days=7)
-        end_date_str = end_date.strftime('%Y-%m-%d')
-        start_date_str = start_date.strftime('%Y-%m-%d')
 
         cdn_groups = [
-            {"cdn": "vai_h5", "domains": ["h5.2v8k.live"]},
-            {"cdn": "vai_91_channel", "domains": ["apt.er65.ltd", "apt.xwc1.live","apt.7a8w.ltd","apt.ol27.live","apt.i8zi.life"]},
-            {"cdn": "vai_xindaxiang_channel", "domains": ["apt.7ark.ltd","apt.1zib.site"]},
-            {"cdn": "ite_91_channel", "domains": ["apt.regh.ltd","apt.yu9r.ltd"]},
-            {"cdn": "ite_xindaxiang_channel", "domains": ["apt.2qj4.live"]},
-            {"cdn": "asia_shell", "domains": ["all"]},
-            {"cdn": "cdnetworks_91_channel", "domains": ["apt.ccgff.com"]},
-            {"cdn": "cdnetworks_91_share", "domains": ["apt.yjxyjt.com","apt.x15022.com","apt.gggccb.com"]},
-            {"cdn": "cdnetworks_xindaxiang_channel", "domains": ["apt.kakjk.com"]},
-            {"cdn": "cdnetworks_xindaxiang_share", "domains": ["apt.isoxqms.com","apt.pinestargold.com"]}, 
-            {"cdn": "huawei_media", "domains": ["all"]},  
-            {"cdn": "tencent_media", "domains": ["cos-traffic"]},
-            # {"cdn": "maoyun_media", "domains": ["all"]}, 
+            {"cdn": "vai_h5", "domains": ["all"], "user_package": 9},
+            {"cdn": "vai_91_channel", "domains": [""], "user_package": ""},
+            {"cdn": "vai_xindaxiang_channel", "domains": [""], "user_package": ""},
+            {"cdn": "ite_91_channel", "domains": [""], "user_package": ""},
+            {"cdn": "ite_xindaxiang_channel", "domains": [""], "user_package": ""},
+            {"cdn": "asia_shell", "domains": ["all"], "user_package": "tc19-site-11"},
+            {"cdn": "cdnetworks_91_channel", "domains": [""], "user_package": ""},
+            {"cdn": "cdnetworks_91_share", "domains": [""], "user_package": ""},
+            {"cdn": "cdnetworks_xindaxiang_channel", "domains": [""], "user_package": ""},
+            {"cdn": "cdnetworks_xindaxiang_share", "domains": [""], "user_package": ""}, 
+            {"cdn": "huawei_media", "domains": ["all"], "user_package": ""},  
+            {"cdn": "tencent_media", "domains": ["cos-traffic"], "user_package": ""},
+            # {"cdn": "maoyun_media", "domains": ["all"], "user_package": ""}, 
         ]
+        
+        # Load domains from domains.txt
+        domains_dict = load_domains_from_file()
+        
+        # Update cdn_groups with domains from domains.txt
+        if domains_dict:
+            for group in cdn_groups:
+                cdn_name = group["cdn"]
+                if cdn_name in domains_dict:
+                    group["domains"] = domains_dict[cdn_name]
+                    logger.info(f"Updated {cdn_name} with domains: {group['domains']}")
+
+        # Add missing groups from domains.txt that aren't in cdn_groups
+        # for cdn_name, domains in domains_dict.items():
+        #     if not any(group["cdn"] == cdn_name for group in cdn_groups):
+        #         cdn_groups.append({"cdn": cdn_name, "domains": domains, "user_package": ""})
+        #         logger.info(f"Added new group from domains.txt: {cdn_name} with domains: {domains}")
 
         for group in cdn_groups:
             traffic_list = []
             cdn_name = group["cdn"]
+            user_package = group["user_package"]
             domains_for_url = "%20".join(group["domains"])
             domains_for_metrics = ",".join(group["domains"])
 
             try:
-                usage_data = self.fetch_cdn_data(cdn_name, domains_for_url, start_date_str, end_date_str)
+                usage_data = self.fetch_cdn_data(cdn_name, domains_for_url, user_package)
                 if usage_data:
                     traffic_list.append([cdn_name, domains_for_metrics])
                     for entry in usage_data:
@@ -388,7 +447,7 @@ def main():
 
     while True:
         collector.fetch_metrics()
-        time.sleep(15)
+        time.sleep(15) #collect metrics every 15 seconds
 
 if __name__ == "__main__":
     main()
