@@ -54,6 +54,36 @@ logger = logging.getLogger(__name__)
 logging.getLogger('requests').setLevel(logging.WARNING)
 logging.getLogger('urllib3').setLevel(logging.WARNING)
 
+# Function to parse domains.txt
+def load_domains_from_file(file_path='domains.txt'):
+    domains_dict = {}
+    current_section = None
+    
+    try:
+        with open(file_path, 'r', encoding='utf-8') as file:
+            for line in file:
+                line = line.strip()
+                if not line:  # Skip empty lines
+                    continue
+                if line.startswith('[') and line.endswith(']'):  # Section header
+                    current_section = line[1:-1]  # Remove [ and ]
+                    domains_dict[current_section] = []
+                elif current_section:  # Domain line
+                    domains_dict[current_section].append(line)
+                    
+    except FileNotFoundError:
+        logger.error(f"File {file_path} not found. Using default domains.")
+        return {}
+    
+    except Exception as e:
+        logger.error(f"Error reading {file_path}: {str(e)}")
+        return {}
+    
+    return domains_dict
+
+
+
+# Main class
 class WebsiteMetricsCollector:
     def __init__(self):
         self.website_traffic_value = Gauge(
@@ -61,6 +91,7 @@ class WebsiteMetricsCollector:
             'Traffic value in gigabytes', #annotation of the metric
             ['date', 'domain', 'cdn'] #the labels that metric have
         )
+
 
     def get_asia_token(self): #
         """Using ID and Key tot get asia cdn token"""
@@ -73,31 +104,31 @@ class WebsiteMetricsCollector:
         response = requests.post(url, headers=headers, data=data)
         return response.json()["data"]["token"]
 
-    def fetch_cdn_data(self, cdn_name, domains_for_url, start_date_str, end_date_str):
+    def fetch_cdn_data(self, cdn_name, domains_for_url, user_package, start_date_str, end_date_str):
         """
         Main method to fetch data based on cdn type, 
         and the data has already been standariztion in the return value.
         """
         if cdn_name.startswith("vai"):
-            return self._fetch_vai_data(cdn_name, domains_for_url, start_date_str, end_date_str)
+            return self._fetch_vai_data(cdn_name, domains_for_url, user_package, start_date_str, end_date_str)
         elif cdn_name.startswith("ite"):
-            return self._fetch_ite_data(cdn_name, domains_for_url, start_date_str, end_date_str)
+            return self._fetch_ite_data(cdn_name, domains_for_url, user_package, start_date_str, end_date_str)
         elif cdn_name.startswith("asia"):
-            return self._fetch_asia_data(cdn_name, domains_for_url, start_date_str, end_date_str)
+            return self._fetch_asia_data(cdn_name, domains_for_url, user_package, start_date_str, end_date_str)
         elif cdn_name.startswith("cdnetworks"):
-            return self._fetch_cdnetworks_data(cdn_name, domains_for_url, start_date_str, end_date_str)
+            return self._fetch_cdnetworks_data(cdn_name, domains_for_url, user_package, start_date_str, end_date_str)
         elif cdn_name.startswith("maoyun"):
-            return self._fetch_maoyun_data(cdn_name, domains_for_url, start_date_str, end_date_str)
+            return self._fetch_maoyun_data(cdn_name, domains_for_url, user_package, start_date_str, end_date_str)
         elif cdn_name.startswith("huawei"):
-            return self._fetch_huawei_data(cdn_name, domains_for_url, start_date_str, end_date_str)
+            return self._fetch_huawei_data(cdn_name, domains_for_url, user_package, start_date_str, end_date_str)
         elif cdn_name.startswith("tencent"):
-            return self._fetch_tencent_data(cdn_name, domains_for_url, start_date_str, end_date_str)
+            return self._fetch_tencent_data(cdn_name, domains_for_url, user_package, start_date_str, end_date_str)
         else:
             logger.error(f"Unsupported CDN: {cdn_name}")
             return None
 
     # Existing CDN handlers
-    def _fetch_vai_data(self, cdn_name, domains_for_url, start_date_str, end_date_str):
+    def _fetch_vai_data(self, cdn_name, domains_for_url, user_package, start_date_str, end_date_str):
         API_KEY = config.VAI_API_KEY
         API_SECRET = config.VAI_API_SECRET
         headers = {
@@ -105,12 +136,15 @@ class WebsiteMetricsCollector:
             "api-secret": API_SECRET,
             "Content-Type": "application/json"
             }
-        url = f"https://cdn.bccdn.com/monitor/usage?cate=site&type=traffic&start={start_date_str}&end={end_date_str}&res={domains_for_url}"
+        if user_package != "":
+            url = f"https://cdn.bccdn.com/monitor/usage?cate=site&type=traffic&start={start_date_str}&end={end_date_str}&res=&user_package={user_package}"
+        else:
+            url = f"https://cdn.bccdn.com/monitor/usage?cate=site&type=traffic&start={start_date_str}&end={end_date_str}&res={domains_for_url}"
         response = requests.get(url, headers=headers)
         data = response.json()['data']
         return data[:-1] if data else []
 
-    def _fetch_ite_data(self, cdn_name, domains_for_url, start_date_str, end_date_str):
+    def _fetch_ite_data(self, cdn_name, domains_for_url, user_package, start_date_str, end_date_str):
         API_KEY = config.ITE_API_KEY
         API_SECRET = config.ITE_API_SECRET
         headers = {
@@ -123,7 +157,7 @@ class WebsiteMetricsCollector:
         data = response.json()['data']
         return data[:-1] if data else []
 
-    def _fetch_asia_data(self, cdn_name, domains_for_url, start_date_str, end_date_str):
+    def _fetch_asia_data(self, cdn_name, domains_for_url, user_package, start_date_str, end_date_str):
         json_data = {
             'site': ["tc19-site-11"],
             'start': f"{start_date_str}",
@@ -147,7 +181,7 @@ class WebsiteMetricsCollector:
             return data[1:-1] if data else []
         return None
 
-    def _fetch_cdnetworks_data(self, cdn_name, domains_for_url, start_date_str, end_date_str):
+    def _fetch_cdnetworks_data(self, cdn_name, domains_for_url, user_package, start_date_str, end_date_str):
         domain_list = domains_for_url.split("%20")
         
         class Client:
@@ -180,12 +214,12 @@ class WebsiteMetricsCollector:
                 return flow_data[:-1] if flow_data else []
         return Client.main()
 
-    def _fetch_maoyun_data(self, cdn_name, domains_for_url, start_date_str, end_date_str):
+    def _fetch_maoyun_data(self, cdn_name, domains_for_url, user_package, start_date_str, end_date_str):
         # Replace with actual API call
         logger.info(f"Fetching maoyun data for {cdn_name} - placeholder")
         return None
 
-    def _fetch_huawei_data(self, cdn_name, domains_for_url, start_date_str, end_date_str):
+    def _fetch_huawei_data(self, cdn_name, domains_for_url, user_package, start_date_str, end_date_str):
         full_start_date_str = start_date_str + " 00:00:00"         
         date_start_obj = datetime.datetime.strptime(full_start_date_str,"%Y-%m-%d %H:%M:%S") # turn into datetime object
         unix_start_timestamp = int(date_start_obj.timestamp() * 1000)                        # turn into unix timestamp
@@ -231,7 +265,7 @@ class WebsiteMetricsCollector:
             print(e.error_code)
             print(e.error_msg)
 
-    def _fetch_tencent_data(self, cdn_name, domains_for_url, start_date_str, end_date_str):
+    def _fetch_tencent_data(self, cdn_name, domains_for_url, user_package, start_date_str, end_date_str):
         try:
             # Authentication with Tencent Cloud credentials
             cred = credential.Credential(config.TENCENT_API_KEY, config.TENCENT_API_SECRET)
@@ -311,30 +345,50 @@ class WebsiteMetricsCollector:
         end_date_str = end_date.strftime('%Y-%m-%d')
         start_date_str = start_date.strftime('%Y-%m-%d')
 
+        # Define default cdn_groups (fallback if domains.txt is missing)
         cdn_groups = [
-            {"cdn": "vai_h5", "domains": ["h5.2v8k.live"]},
-            {"cdn": "vai_91_channel", "domains": ["apt.er65.ltd", "apt.xwc1.live","apt.7a8w.ltd","apt.ol27.live","apt.i8zi.life"]},
-            {"cdn": "vai_xindaxiang_channel", "domains": ["apt.7ark.ltd","apt.1zib.site"]},
-            {"cdn": "ite_91_channel", "domains": ["apt.regh.ltd","apt.yu9r.ltd"]},
-            {"cdn": "ite_xindaxiang_channel", "domains": ["apt.2qj4.live"]},
-            {"cdn": "asia_shell", "domains": ["all"]},
-            {"cdn": "cdnetworks_91_channel", "domains": ["apt.ccgff.com"]},
-            {"cdn": "cdnetworks_91_share", "domains": ["apt.yjxyjt.com","apt.x15022.com","apt.gggccb.com"]},
-            {"cdn": "cdnetworks_xindaxiang_channel", "domains": ["apt.kakjk.com"]},
-            {"cdn": "cdnetworks_xindaxiang_share", "domains": ["apt.isoxqms.com","apt.pinestargold.com"]}, 
-            {"cdn": "huawei_media", "domains": ["all"]},  
-            {"cdn": "tencent_media", "domains": ["cos-traffic"]},
-            # {"cdn": "maoyun_media", "domains": ["all"]}, 
+            {"cdn": "vai_h5", "domains": ["all"], "user_package": 9},
+            {"cdn": "vai_91_channel", "domains": ["apt.er65.ltd", "apt.xwc1.live","apt.7a8w.ltd","apt.ol27.live","apt.i8zi.life"], "user_package": ""},
+            {"cdn": "vai_xindaxiang_channel", "domains": ["apt.7ark.ltd","apt.1zib.site"], "user_package": ""},
+            {"cdn": "ite_91_channel", "domains": ["apt.regh.ltd","apt.yu9r.ltd"], "user_package": ""},
+            {"cdn": "ite_xindaxiang_channel", "domains": ["apt.2qj4.live"], "user_package": ""},
+            {"cdn": "asia_shell", "domains": ["all"], "user_package": "tc19-site-11"},
+            {"cdn": "cdnetworks_91_channel", "domains": ["apt.ccgff.com"], "user_package": ""},
+            {"cdn": "cdnetworks_91_share", "domains": ["apt.yjxyjt.com","apt.x15022.com","apt.gggccb.com"], "user_package": ""},
+            {"cdn": "cdnetworks_xindaxiang_channel", "domains": ["apt.kakjk.com"], "user_package": ""},
+            {"cdn": "cdnetworks_xindaxiang_share", "domains": ["apt.isoxqms.com","apt.pinestargold.com"], "user_package": ""}, 
+            {"cdn": "huawei_media", "domains": ["all"], "user_package": ""},  
+            {"cdn": "tencent_media", "domains": ["cos-traffic"], "user_package": ""},
+            # {"cdn": "maoyun_media", "domains": ["all"], "user_package": ""}, 
         ]
+        
+        # Load domains from domains.txt
+        domains_dict = load_domains_from_file()
+        
+        # Update cdn_groups with domains from domains.txt
+        if domains_dict:
+            for group in cdn_groups:
+                cdn_name = group["cdn"]
+                if cdn_name in domains_dict:
+                    group["domains"] = domains_dict[cdn_name]
+                    logger.info(f"Updated {cdn_name} with domains: {group['domains']}")
 
+        # Add missing groups from domains.txt that aren't in cdn_groups
+        # for cdn_name, domains in domains_dict.items():
+        #     if not any(group["cdn"] == cdn_name for group in cdn_groups):
+        #         cdn_groups.append({"cdn": cdn_name, "domains": domains, "user_package": ""})
+        #         logger.info(f"Added new group from domains.txt: {cdn_name} with domains: {domains}")
+                
         for group in cdn_groups:
             traffic_list = []
             cdn_name = group["cdn"]
+            user_package = group["user_package"]
             domains_for_url = "%20".join(group["domains"])
             domains_for_metrics = ",".join(group["domains"])
+            
 
             try:
-                usage_data = self.fetch_cdn_data(cdn_name, domains_for_url, start_date_str, end_date_str)
+                usage_data = self.fetch_cdn_data(cdn_name, domains_for_url, user_package, start_date_str, end_date_str)
                 if usage_data:
                     traffic_list.append([cdn_name, domains_for_metrics])
                     for entry in usage_data:
@@ -367,6 +421,8 @@ class WebsiteMetricsCollector:
                 logger.error(f"Error fetching data from {cdn_name}: {str(e)}")
             except Exception as e:
                 logger.error(f"Unexpected error for {cdn_name}: {str(e)}")
+    #def get_cdn_domain():
+        
 
 def signal_handler(sig, frame):
     logger.info("Received shutdown signal, exiting...")
@@ -381,9 +437,7 @@ def main():
     start_http_server(exporter_port)
     logger.info(f"Exporter server started on port {exporter_port}")
 
-    while True:
-        collector.fetch_metrics()
-        time.sleep(15)
+    collector.fetch_metrics()
 
 if __name__ == "__main__":
     main()
