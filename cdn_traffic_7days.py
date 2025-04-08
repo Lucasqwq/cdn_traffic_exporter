@@ -394,6 +394,7 @@ class WebsiteMetricsCollector:
                     for entry in usage_data:
                         date = entry['date']
                         value = entry['value']
+                        #Each cdn value transformation is different,so should be add to one of the below
                         if cdn_name.startswith(("huawei")):
                             value_in_tb = f"{(float(value) / 1_099_511_627_776):.2f}"
                             self.website_traffic_value.labels(date=date, domain=domains_for_metrics, cdn=cdn_name).set(value_in_tb)
@@ -421,8 +422,6 @@ class WebsiteMetricsCollector:
                 logger.error(f"Error fetching data from {cdn_name}: {str(e)}")
             except Exception as e:
                 logger.error(f"Unexpected error for {cdn_name}: {str(e)}")
-    #def get_cdn_domain():
-        
 
 def signal_handler(sig, frame):
     logger.info("Received shutdown signal, exiting...")
@@ -433,10 +432,6 @@ def main():
     signal.signal(signal.SIGINT, signal_handler)
 
     collector = WebsiteMetricsCollector()
-    exporter_port = 18562
-    start_http_server(exporter_port)
-    logger.info(f"Exporter server started on port {exporter_port}")
-
     collector.fetch_metrics()
 
 if __name__ == "__main__":
