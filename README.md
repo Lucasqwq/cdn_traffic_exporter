@@ -10,7 +10,11 @@
 - **Cdnetworks API packages**：`cdnetworks` The folder includes Cdnetworks API SDK  
 - **Dockerfile contents:**  
     ```
-    FROM python:3.8.10-slim
+    FROM python:3.11-slim
+
+    ENV TZ=Asia/Taipei
+
+    RUN ln -snf /usr/share/zoneinfo/$TZ /etc/localtime && echo $TZ > /etc/timezone
 
     WORKDIR /app
 
@@ -30,6 +34,8 @@
         context: ./cdn_traffic_exporter
       ports:
         - "18563:18563"
+      volumes:
+        - /data/logs/cdn_traffic_exporter/exporter.log:/data/logs/cdn_traffic_exporter/exporter.log
       networks:
         - monitor
     ```
@@ -45,20 +51,7 @@
 
 ## Restarting service  
 - If you have update on code  
-    These command are used to delete and rebuild image,because there are no volume to mount ,so you have to clear the image and rebuild to start the service
-  
-    ```
-    docker stop cdn_traffic_exporter
-    docker rm cdn_traffic_exporter
-    docker rmi prometheus-cdn_traffic_exporter
-    ```
-    
-    back to prometheus folder
-
-    ```
-    docker-compose up -d cdn_traffic_exporter
-    ```
-    
+    In the cdn_traffic_exporter folder , type : ./restart_container.sh
     then the service is up  
     
 - no update on code  
@@ -66,6 +59,9 @@
 
 ## Setting cronjob
 - To let the past timestamp traffic-data not been cached on the metrics exporter,need to restart cdn_traffic_exporter container to clear the old metrics.
+  ```
+  1 0 * * * cd /opt/prometheus/cdn_traffic_exporter && /bin/bash restart_container.sh > /tmp/restart_container.log 2>&1  
+  ```
 
 ## Setting prometheus scrape interval
 - scrape interval setting to 5m
