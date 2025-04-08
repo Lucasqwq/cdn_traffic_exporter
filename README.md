@@ -4,7 +4,7 @@
 - Retrieve traffic data for a specific domain through the APIs of various CDN providers, convert it into Metrics Values compatible with Prometheus, and then integrate it into a Grafana dashboard, supporting direct copy-paste into an Excel traffic table.
 
 ## Prerequisites  
-- **Python Environment**：Basic on `python:3.8.10-slim` Docker image  
+- **Python Environment**：Basic on `python:3.11-slim` Docker image  
 - **Packages requirements**：Install `requirements.txt` Python module  
 - **API Authentication**：`config.py` The file includes API authentication information from each CDN providers
 - **Cdnetworks API packages**：`cdnetworks` The folder includes Cdnetworks API SDK  
