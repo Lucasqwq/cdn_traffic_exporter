@@ -2,7 +2,7 @@
 
 - This project use `prometheus_client` module to expose metric value from cdn_traffic to build a Grafana dashboard.
 - Retrieve traffic data for a specific domain through the APIs of various CDN providers, convert it into Metrics Values compatible with Prometheus, and then integrate it into a Grafana dashboard, supporting direct copy-paste into an Excel traffic table.
-- Grafana Dashboard : https://grafana.com/grafana/dashboards/23263
+- Grafana Dashboard : https://grafana.com/grafana/dashboards/23263 (You could also import the dashboard through using the ID which is 23263.)
 
 ## Prerequisites  
 - **Python Environment**：Basic on `python:3.11-slim` Docker image  
